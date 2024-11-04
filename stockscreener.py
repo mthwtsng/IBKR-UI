@@ -23,7 +23,7 @@ def request_market_data():
         # For futures, create the contract in the format you provided
         contract = Contract()
         contract.secType = 'FUT'
-        contract.symbol = symbol  # Symbol like 'ES' or 'MNQ'
+        contract.symbol = symbol  
         contract.exchange = 'CME'
         contract.currency = 'USD'
         contract.lastTradeDateOrContractMonth = "202412"
@@ -38,19 +38,19 @@ def request_market_data():
     
     # Request real-time market data
     ticker = ib.reqMktData(contract, genericTickList='')
-    ib.sleep(1)  # Allow time for data to update
+    ib.sleep(1)
 
     # Update the labels with the requested data
     bid_label['text'] = f"Bid: {ticker.bid or 'N/A'}"
     ask_label['text'] = f"Ask: {ticker.ask or 'N/A'}"
     last_label['text'] = f"Last: {ticker.last or 'N/A'}"
 
-    # Schedule next update in 1 second to keep data live
+    # Schedule next update in x seconds to keep data live
     root.after(5000, request_market_data)
 
 # Function to place a market order
 def place_order():
-    action = action_var.get()  # Buy or Sell
+    action = action_var.get()
     quantity = int(quantity_entry.get())
     
     # Define contract based on ticker type and symbol
