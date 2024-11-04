@@ -5,6 +5,7 @@ from ib_insync import IB, Stock, Contract, MarketOrder
 # Initialize the IB connection
 ib = IB()
 ib.connect('127.0.0.1', 7497, clientId=1)
+ib.reqMarketDataType(3)
 
 # Function to request market data based on user input
 def request_market_data():
@@ -23,15 +24,17 @@ def request_market_data():
         contract = Contract()
         contract.secType = 'FUT'
         contract.symbol = symbol  # Symbol like 'ES' or 'MNQ'
-        contract.exchange = 'GLOBEX'
+        contract.exchange = 'CME'
         contract.currency = 'USD'
-        contract.localSymbol = symbol + '1!'  # Adjust this depending on your contract month
+        contract.lastTradeDateOrContractMonth = "202412"
     else:
         messagebox.showerror("Selection Error", "Please select a valid ticker type.")
         return
 
     # Qualify the contract
-    ib.qualifyContracts(contract)
+    if not ib.qualifyContracts(contract):
+        messagebox.showerror("Contract Error", "Failed to qualify contract.")
+        return
     
     # Request real-time market data
     ticker = ib.reqMktData(contract, genericTickList='')
@@ -43,7 +46,7 @@ def request_market_data():
     last_label['text'] = f"Last: {ticker.last or 'N/A'}"
 
     # Schedule next update in 1 second to keep data live
-    root.after(1000, request_market_data)
+    root.after(5000, request_market_data)
 
 # Function to place a market order
 def place_order():
@@ -60,12 +63,15 @@ def place_order():
         contract = Contract()
         contract.secType = 'FUT'
         contract.symbol = symbol
-        contract.exchange = 'GLOBEX'
+        contract.exchange = 'CME'
         contract.currency = 'USD'
         contract.lastTradeDateOrContractMonth = "202412"
 
     # Qualify the contract and place the order
-    ib.qualifyContracts(contract)
+    if not ib.qualifyContracts(contract):
+        messagebox.showerror("Contract Error", "Failed to qualify contract.")
+        return
+
     order = MarketOrder(action, quantity)
     trade = ib.placeOrder(contract, order)
     messagebox.showinfo("Order Placed", f"{action} order for {quantity} contracts of {symbol} placed.")
@@ -73,7 +79,7 @@ def place_order():
 # Setup the GUI
 root = tk.Tk()
 root.title("IBKR Market Data")
-root.geometry("1000x1000")
+root.geometry("400x400")
 
 # Ticker type selection
 ticker_type_var = tk.StringVar(value="Stock")
