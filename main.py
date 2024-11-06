@@ -6,60 +6,83 @@ from ibkr_client import IBKRClient  # Ensure this import is correct
 import ui_components
 
 # Initialize IBKR client
-ibkr_client = IBKRClient()
+ibkr = IBKRClient()
 
-# Setup the main Tkinter window
+# Setup the main GUI window
 root = tk.Tk()
-root.title("IBKR Market Data and Order Placement")
-root.geometry("400x400")
+root.title("IBKR Market Data & Order Placement")
+root.geometry("600x600")
 
-# Ticker type selection
+# Configure a style for ttk widgets
+style = ttk.Style()
+style.configure("TLabel", font=("Helvetica", 12))
+style.configure("TButton", font=("Helvetica", 10))
+style.configure("Header.TLabel", font=("Helvetica", 14, "bold"))
+
+# Create a main frame to organize sections
+main_frame = ttk.Frame(root, padding="10")
+main_frame.pack(fill="both", expand=True)
+
+# Header Label
+header_label = ttk.Label(main_frame, text="IBKR Market Data & Order Placement", style="Header.TLabel")
+header_label.grid(row=0, column=0, columnspan=2, pady=(0, 10))
+
+# Ticker Type Frame
+ticker_type_frame = ttk.LabelFrame(main_frame, text="Select Ticker Type", padding="10")
+ticker_type_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(5, 10))
+
 ticker_type_var = tk.StringVar(value="Stock")
-ttk.Label(root, text="Select Ticker Type:").pack(pady=5)
-ttk.Radiobutton(root, text="Stock", variable=ticker_type_var, value="Stock").pack()
-ttk.Radiobutton(root, text="Future", variable=ticker_type_var, value="Future").pack()
+ttk.Radiobutton(ticker_type_frame, text="Stock", variable=ticker_type_var, value="Stock").grid(row=0, column=0, padx=10)
+ttk.Radiobutton(ticker_type_frame, text="Future", variable=ticker_type_var, value="Future").grid(row=0, column=1, padx=10)
 
-# Ticker symbol entry
-ttk.Label(root, text="Enter Ticker Symbol:").pack(pady=5)
-symbol_entry = ttk.Entry(root)
-symbol_entry.pack(pady=5)
+# Ticker Symbol Frame
+symbol_frame = ttk.Frame(main_frame, padding="10")
+symbol_frame.grid(row=2, column=0, columnspan=2, sticky="ew")
 
-# Order action and quantity
+ttk.Label(symbol_frame, text="Enter Ticker Symbol:").grid(row=0, column=0, sticky="w")
+symbol_entry = ttk.Entry(symbol_frame, width=20)
+symbol_entry.grid(row=0, column=1, padx=(10, 0), sticky="ew")
+
+# Market Data Display Frame
+market_data_frame = ttk.LabelFrame(main_frame, text="Market Data", padding="10")
+market_data_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(5, 10))
+
+bid_label = ttk.Label(market_data_frame, text="Bid: N/A", style="TLabel")
+bid_label.grid(row=0, column=0, sticky="w")
+ask_label = ttk.Label(market_data_frame, text="Ask: N/A", style="TLabel")
+ask_label.grid(row=0, column=1, sticky="w")
+last_label = ttk.Label(market_data_frame, text="Last: N/A", style="TLabel")
+last_label.grid(row=1, column=0, sticky="w", pady=(5, 0))
+
+# Order Frame
+order_frame = ttk.LabelFrame(main_frame, text="Place Order", padding="10")
+order_frame.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(5, 10))
+
+ttk.Label(order_frame, text="Order Action:").grid(row=0, column=0, sticky="w")
 action_var = tk.StringVar(value="BUY")
-ttk.Label(root, text="Order Action:").pack(pady=5)
-ttk.Radiobutton(root, text="Buy", variable=action_var, value="BUY").pack()
-ttk.Radiobutton(root, text="Sell", variable=action_var, value="SELL").pack()
+ttk.Radiobutton(order_frame, text="Buy", variable=action_var, value="BUY").grid(row=0, column=1, padx=5)
+ttk.Radiobutton(order_frame, text="Sell", variable=action_var, value="SELL").grid(row=0, column=2, padx=5)
 
-ttk.Label(root, text="Quantity:").pack(pady=5)
-quantity_entry = ttk.Entry(root)
-quantity_entry.pack(pady=5)
+ttk.Label(order_frame, text="Quantity:").grid(row=1, column=0, sticky="w", pady=(10, 0))
+quantity_entry = ttk.Entry(order_frame, width=10)
+quantity_entry.grid(row=1, column=1, columnspan=2, sticky="w", pady=(10, 0))
 
-# Create labels to display market data
-bid_label, ask_label, last_label = ui_components.create_market_data_labels(root)
-bid_label.pack(pady=2)
-ask_label.pack(pady=2)
-last_label.pack(pady=2)
+# Buttons Frame
+button_frame = ttk.Frame(main_frame)
+button_frame.grid(row=5, column=0, columnspan=2, pady=(10, 0))
 
-# Button to request market data
-def on_request_market_data():
-    ticker_type = ticker_type_var.get()
-    symbol = symbol_entry.get().upper()
-    ui_components.request_market_data(ibkr_client, ticker_type, symbol, bid_label, ask_label, last_label)
+search_button = ttk.Button(button_frame, text="Search", command=lambda: ui_components.request_market_data(ibkr, ticker_type_var.get(), symbol_entry.get(), bid_label, ask_label, last_label))
+search_button.grid(row=0, column=0, padx=10)
 
-search_button = ttk.Button(root, text="Search", command=on_request_market_data)
-search_button.pack(pady=10)
+order_button = ttk.Button(button_frame, text="Place Order", command=lambda: ui_components.place_order(ibkr, action_var.get(), symbol_entry.get(), ticker_type_var.get(), quantity_entry.get()))
+order_button.grid(row=0, column=1, padx=10)
 
-# Button to place order
-def on_place_order():
-    ticker_type = ticker_type_var.get()
-    symbol = symbol_entry.get().upper()
-    action = action_var.get()
-    quantity = int(quantity_entry.get())
-    ui_components.confirm_and_place_order(ibkr_client, ticker_type, symbol, action, quantity)
+# Status Bar
+status_label = ttk.Label(root, text="Status: Connected to IBKR", relief="sunken", anchor="w", padding="5")
+status_label.pack(fill="x", side="bottom")
 
-order_button = ttk.Button(root, text="Place Order", command=on_place_order)
-order_button.pack(pady=10)
-
-# Start the main Tkinter loop
-root.protocol("WM_DELETE_WINDOW", lambda: (ibkr_client.disconnect(), root.destroy()))
+# Run the main loop
 root.mainloop()
+
+# Disconnect from IBKR on close
+ibkr.disconnect()
