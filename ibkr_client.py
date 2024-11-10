@@ -38,6 +38,9 @@ class IBKRClient:
         }
 
     def place_order(self, contract, action, quantity):
+        if not self.ib.qualifyContracts(contract):
+            messagebox.showerror("Contract Error", "Failed to qualify contract.")
+            return
         order = MarketOrder(action, quantity)
         trade = self.ib.placeOrder(contract, order)
         return trade
