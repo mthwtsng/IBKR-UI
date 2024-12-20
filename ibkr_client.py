@@ -69,6 +69,30 @@ class IBKRClient:
             return df
         return None
 
+    def get_positions(self):
+        positions = self.ib.positions()
+        if not positions:
+            return "No positions currently held."
+        
+        positions_summary = []
+        for pos in positions:
+            contract = self.get_contract(ticker_type="Stock", symbol=pos.contract.symbol)
+            if contract is None:
+                continue
+            market_data = self.get_market_data(contract)
+
+            positions_summary.append({
+                "contract": f"{pos.contract.localSymbol} ({pos.contract.secType})",
+                "quantity": pos.position,
+                "average_cost": pos.avgCost,
+                "current_price": market_data["last"]  
+            })
+
+        return pd.DataFrame(positions_summary)
+
+
+
+
     def calculate_indicators(self, df):
         if df is None or df.empty:
             return {}
