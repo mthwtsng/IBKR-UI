@@ -20,7 +20,7 @@ class IBKRClient:
             contract.symbol = symbol
             contract.exchange = 'CME'
             contract.currency = 'USD'
-            contract.lastTradeDateOrContractMonth = "202412"
+            contract.lastTradeDateOrContractMonth = "202501"
         else:
             return None
 
@@ -54,20 +54,28 @@ class IBKRClient:
     
     # Retrieves historical data of a stock over 1 day, with 1 minute intervals
     def get_historical_data(self, contract, duration="1 D", barSize="1 min"):
-        bars = self.ib.reqHistoricalData(
-            contract,
-            endDateTime='',
-            durationStr=duration,
-            barSizeSetting=barSize,
-            whatToShow='MIDPOINT',
-            useRTH=True
-        )
-        self.ib.sleep(1)
-        df = pd.DataFrame(bars)
-        if not df.empty:
-            df['date'] = pd.to_datetime(df['date'])
-            return df
-        return None
+        try:
+            bars = self.ib.reqHistoricalData(
+                contract,
+                endDateTime='',
+                durationStr=duration,
+                barSizeSetting=barSize,
+                whatToShow='MIDPOINT',
+                useRTH=True
+            )
+            self.ib.sleep(1)
+            df = pd.DataFrame(bars)
+            if not df.empty:
+                df['date'] = pd.to_datetime(df['date'])
+                # Ensure required columns are present
+                if 'close' not in df.columns or 'volume' not in df.columns:
+                    messagebox.showerror("Error", "Historical data is missing required columns.")
+                    return None
+                return df
+            return None
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {str(e)}")
+            return None
 
     def get_positions(self):
         positions = self.ib.positions()
@@ -94,11 +102,11 @@ class IBKRClient:
 
 
     def calculate_indicators(self, df):
-        if df is None or df.empty:
+        if df is None or df.empty or 'close' not in df.columns or 'volume' not in df.columns:
             return {}
 
         # Simple Moving Average (SMA)
-        df['SMA'] = df['close'].rolling(window=14).mean()
+        df['SMA'] = df['close'].rolling(window=14, min_periods=1).mean()
 
         # Exponential Moving Average (EMA)
         df['EMA'] = df['close'].ewm(span=14, adjust=False).mean()
@@ -108,9 +116,10 @@ class IBKRClient:
 
         # RSI Calculation
         delta = df['close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14, min_periods=1).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14, min_periods=1).mean()
         rs = gain / loss
         df['RSI'] = 100 - (100 / (1 + rs))
 
+        # Return the latest indicator values
         return df.iloc[-1][['SMA', 'EMA', 'VWAP', 'RSI']].to_dict()
