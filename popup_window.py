@@ -53,6 +53,5 @@ def create_popup_window(parent, ibkr_client, ticker_type, symbol):
                 vwap_label['text'] = f"VWAP: {indicators.get('VWAP', 'N/A'):.2f}"
                 rsi_label['text'] = f"RSI: {indicators.get('RSI', 'N/A'):.2f}"
 
-    # Close button
     close_button = ttk.Button(content_frame, text="Close", command=data_popup.destroy)
     close_button.grid(row=10, column=0, columnspan=2, pady=20)

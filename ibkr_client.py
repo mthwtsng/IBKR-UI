@@ -4,13 +4,12 @@ from tkinter import messagebox
 import pandas as pd
 
 class IBKRClient:
-    # Connect to local TWS 
     def __init__(self, host='127.0.0.1', port=7497, clientId=1):
         self.ib = IB()
         self.ib.connect(host, port, clientId)
         self.ib.reqMarketDataType(3)
 
-    # Retrieve contract, based on security type
+    # Retrieve contract
     def get_contract(self, ticker_type, symbol):
         if ticker_type == "Stock":
             contract = Stock(symbol=symbol, exchange="SMART", currency="USD")
@@ -23,8 +22,6 @@ class IBKRClient:
             contract.lastTradeDateOrContractMonth = "202501"
         else:
             return None
-
-        # Qualify the contract to ensure it exists
         if not self.ib.qualifyContracts(contract):
             messagebox.showerror("Contract Error", f"Failed to qualify contract for {symbol}.")
             return None
@@ -40,7 +37,7 @@ class IBKRClient:
             "last": ticker.last or "N/A"
         }
 
-    # Sends order placing request through API
+    # Sends order placing request
     def place_order(self, contract, action, quantity):
         if not self.ib.qualifyContracts(contract):
             messagebox.showerror("Contract Error", "Failed to qualify contract.")
@@ -52,7 +49,7 @@ class IBKRClient:
     def disconnect(self):
         self.ib.disconnect()
     
-    # Retrieves historical data of a stock over 1 day, with 1 minute intervals
+    # Retrieves historical data of a stock
     def get_historical_data(self, contract, duration="1 D", barSize="1 min"):
         try:
             bars = self.ib.reqHistoricalData(
@@ -67,7 +64,6 @@ class IBKRClient:
             df = pd.DataFrame(bars)
             if not df.empty:
                 df['date'] = pd.to_datetime(df['date'])
-                # Ensure required columns are present
                 if 'close' not in df.columns or 'volume' not in df.columns:
                     messagebox.showerror("Error", "Historical data is missing required columns.")
                     return None
@@ -121,5 +117,4 @@ class IBKRClient:
         rs = gain / loss
         df['RSI'] = 100 - (100 / (1 + rs))
 
-        # Return the latest indicator values
         return df.iloc[-1][['SMA', 'EMA', 'VWAP', 'RSI']].to_dict()
