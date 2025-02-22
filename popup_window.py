@@ -3,7 +3,6 @@ from tkinter import ttk
 from ui_components import request_market_data
 
 def create_popup_window(parent, ibkr_client, ticker_type, symbol):
-    # Create new pop up window for stock information
     data_popup = tk.Toplevel(parent)
     data_popup.title(f"Market Data and Indicators for {symbol} ({ticker_type})")
     data_popup.geometry("500x400")
@@ -24,7 +23,7 @@ def create_popup_window(parent, ibkr_client, ticker_type, symbol):
     ask_label.grid(row=2, column=0, sticky="w", padx=10, pady=5)
     last_label.grid(row=3, column=0, sticky="w", padx=10, pady=5)
 
-    # Fetch and update market data
+    # Update market data
     request_market_data(ibkr_client, ticker_type, symbol, bid_label, ask_label, last_label)
 
     # Indicator labels
@@ -41,7 +40,7 @@ def create_popup_window(parent, ibkr_client, ticker_type, symbol):
     vwap_label.grid(row=8, column=0, sticky="w", padx=10, pady=5)
     rsi_label.grid(row=9, column=0, sticky="w", padx=10, pady=5)
 
-    # Fetch historical data and calculate indicators
+    # Calculate indicators
     contract = ibkr_client.get_contract(ticker_type, symbol)
     if contract:
         historical_data = ibkr_client.get_historical_data(contract)

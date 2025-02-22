@@ -1,7 +1,7 @@
-# ibkr_client.py
 from ib_insync import IB, Stock, Contract, MarketOrder
 from tkinter import messagebox
 import pandas as pd
+import time
 
 class IBKRClient:
     def __init__(self, host='127.0.0.1', port=7497, clientId=1):
@@ -11,43 +11,60 @@ class IBKRClient:
 
     # Retrieve contract
     def get_contract(self, ticker_type, symbol):
-        if ticker_type == "Stock":
-            contract = Stock(symbol=symbol, exchange="SMART", currency="USD")
-        elif ticker_type == "Future":
-            contract = Contract()
-            contract.secType = 'FUT'
-            contract.symbol = symbol
-            contract.exchange = 'CME'
-            contract.currency = 'USD'
-            contract.lastTradeDateOrContractMonth = "202501"
-        else:
+        try:
+            if ticker_type == "Stock":
+                contract = Stock(symbol=symbol, exchange="SMART", currency="USD")
+            elif ticker_type == "Future":
+                contract = Contract()
+                contract.secType = 'FUT'
+                contract.symbol = symbol
+                contract.exchange = 'CME'
+                contract.currency = 'USD'
+                contract.lastTradeDateOrContractMonth = "202501"
+            else:
+                raise ValueError("Invalid ticker type")
+
+            if not self.ib.qualifyContracts(contract):
+                raise Exception(f"Failed to qualify contract for {symbol}")
+
+            return contract
+        except Exception as e:
+            messagebox.showerror("Contract Error", f"An error occurred: {str(e)}")
             return None
-        if not self.ib.qualifyContracts(contract):
-            messagebox.showerror("Contract Error", f"Failed to qualify contract for {symbol}.")
-            return None
-        return contract
 
     # Retrieves stock price data
-    def get_market_data(self, contract):
-        ticker = self.ib.reqMktData(contract, genericTickList='')
-        self.ib.sleep(1)
-        return {
-            "bid": ticker.bid or "N/A",
-            "ask": ticker.ask or "N/A",
-            "last": ticker.last or "N/A"
-        }
+    def get_market_data(self, contract, retries=3, delay=1):
+        for attempt in range(retries):
+            try:
+                ticker = self.ib.reqMktData(contract, genericTickList='')
+                self.ib.sleep(1)
+                if not ticker.bid or not ticker.ask or not ticker.last:
+                    raise ValueError("Incomplete market data")
+                return {
+                    "bid": ticker.bid,
+                    "ask": ticker.ask,
+                    "last": ticker.last
+                }
+            except Exception as e:
+                if attempt == retries - 1:
+                    messagebox.showerror("Market Data Error", f"Failed to fetch market data: {str(e)}")
+                    return None
+                time.sleep(delay * (2 ** attempt))
 
     # Sends order placing request
     def place_order(self, contract, action, quantity):
-        if not self.ib.qualifyContracts(contract):
-            messagebox.showerror("Contract Error", "Failed to qualify contract.")
-            return
-        order = MarketOrder(action, quantity)
-        trade = self.ib.placeOrder(contract, order)
-        return trade
+        try:
+            if not isinstance(quantity, int) or quantity <= 0:
+                raise ValueError("Invalid quantity")
+            if action not in ["BUY", "SELL"]:
+                raise ValueError("Invalid action")
 
-    def disconnect(self):
-        self.ib.disconnect()
+            order = MarketOrder(action, quantity)
+            trade = self.ib.placeOrder(contract, order)
+            return trade
+        except Exception as e:
+            messagebox.showerror("Order Error", f"Failed to place order: {str(e)}")
+            return None
     
     # Retrieves historical data of a stock
     def get_historical_data(self, contract, duration="1 D", barSize="1 min"):
@@ -62,15 +79,11 @@ class IBKRClient:
             )
             self.ib.sleep(1)
             df = pd.DataFrame(bars)
-            if not df.empty:
-                df['date'] = pd.to_datetime(df['date'])
-                if 'close' not in df.columns or 'volume' not in df.columns:
-                    messagebox.showerror("Error", "Historical data is missing required columns.")
-                    return None
-                return df
-            return None
+            if df.empty or 'close' not in df.columns or 'volume' not in df.columns:
+                raise ValueError("Historical data is incomplete or invalid")
+            return df
         except Exception as e:
-            messagebox.showerror("Error", f"An error occurred: {str(e)}")
+            messagebox.showerror("Historical Data Error", f"An error occurred: {str(e)}")
             return None
 
     def get_positions(self):

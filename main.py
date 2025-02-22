@@ -36,7 +36,6 @@ def populate_positions_list(frame, ibkr):
         button.grid(row=i + 1, column=4, padx=10, pady=5)
 
 
-# Main application window
 root = tk.Tk()
 root.title("Ticker Search and Positions")
 root.geometry("720x1080")
