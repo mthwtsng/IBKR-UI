@@ -1,26 +1,74 @@
 from ib_insync import IB, Stock, Contract, MarketOrder
 from tkinter import messagebox
+from datetime import date
 import pandas as pd
 import time
+from datetime import datetime
+
+
 
 class IBKRClient:
+    
     def __init__(self, host='127.0.0.1', port=7497, clientId=1):
         self.ib = IB()
         self.ib.connect(host, port, clientId)
         self.ib.reqMarketDataType(3)
 
+    def _get_next_quarterly_expiration(self, current_date=None, offset=0):
+        """
+        Calculate the next quarterly expiration month (March, June, Sep, Dec) for ES futures.
+        
+        Args:
+            current_date (datetime, optional): Reference date. Defaults to today.
+            offset (int): Number of quarters to skip (0 = next quarter, 1 = quarter after, etc.).
+        
+        Returns:
+            str: YYYYMM format of the expiration month (e.g., '202506').
+        """
+        if current_date is None:
+            current_date = datetime.now()
+        
+        quarterly_months = [3, 6, 9, 12]
+        
+        year = current_date.year
+        month = current_date.month
+
+        for i in range(len(quarterly_months)):
+            if month <= quarterly_months[i]:
+                target_month = quarterly_months[i]
+                break
+        else:
+            target_month = quarterly_months[0]
+            year += 1
+        
+        # Skips quarters based on offset
+        for _ in range(offset):
+            target_month_index = (quarterly_months.index(target_month) + 1) % 4
+            target_month = quarterly_months[target_month_index]
+            if target_month_index == 0:
+                year += 1
+        
+        return f"{year}{target_month:02d}"
+    
     # Retrieve contract
-    def get_contract(self, ticker_type, symbol):
+    def get_contract(self, ticker_type, symbol, year_month=None, quarter_offset=0):
         try:
             if ticker_type == "Stock":
                 contract = Stock(symbol=symbol, exchange="SMART", currency="USD")
             elif ticker_type == "Future":
                 contract = Contract()
                 contract.secType = 'FUT'
-                contract.symbol = symbol
+                contract.symbol = symbol    
                 contract.exchange = 'CME'
                 contract.currency = 'USD'
-                contract.lastTradeDateOrContractMonth = "202501"
+                contract.multiplier = ''  
+                
+                if year_month:
+                    contract.lastTradeDateOrContractMonth = year_month
+                else:
+                    contract.lastTradeDateOrContractMonth = self._get_next_quarterly_expiration(
+                        offset=quarter_offset
+                    )
             else:
                 raise ValueError("Invalid ticker type")
 
@@ -93,16 +141,29 @@ class IBKRClient:
         
         positions_summary = []
         for pos in positions:
-            contract = self.get_contract(ticker_type="Stock", symbol=pos.contract.symbol)
+            sec_type = pos.contract.secType
+
+            if sec_type == "FUT":
+                contract = self.get_contract(
+                    ticker_type="Future",
+                    symbol=pos.contract.symbol
+                )
+            else:
+                contract = self.get_contract(
+                    ticker_type="Stock",
+                    symbol=pos.contract.symbol
+                )
+
             if contract is None:
                 continue
+
             market_data = self.get_market_data(contract)
 
             positions_summary.append({
                 "contract": f"{pos.contract.localSymbol} ({pos.contract.secType})",
                 "quantity": pos.position,
                 "average_cost": pos.avgCost,
-                "current_price": market_data["last"]  
+                "current_price": market_data["last"]
             })
 
         return pd.DataFrame(positions_summary)
