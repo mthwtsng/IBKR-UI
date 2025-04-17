@@ -8,28 +8,33 @@ from datetime import datetime
 
 
 class IBKRClient:
-    
+
     def __init__(self, host='127.0.0.1', port=7497, clientId=1):
+        """Initialize IBKRClient with connection to IBKR
+        
+        Args:
+            host (str): Host addr. for IB connection
+            port (int): Port number for IB connection
+            clientId (int): Client ID for IB connection
+        """
         self.ib = IB()
         self.ib.connect(host, port, clientId)
         self.ib.reqMarketDataType(3)
 
     def _get_next_quarterly_expiration(self, current_date=None, offset=0):
         """
-        Calculate the next quarterly expiration month (March, June, Sep, Dec) for ES futures.
+        Calculate the next quarterly expiration month (March, June, Sep, Dec)
         
         Args:
-            current_date (datetime, optional): Reference date. Defaults to today.
-            offset (int): Number of quarters to skip (0 = next quarter, 1 = quarter after, etc.).
+            current_date (datetime, optional): Reference date, using current date
+            offset (int): Number of quarters to skip (0 = next quarter, 1 = quarter after, etc.)
         
         Returns:
-            str: YYYYMM format of the expiration month (e.g., '202506').
+            str: YYYYMM format of the expiration month
         """
         if current_date is None:
             current_date = datetime.now()
-        
         quarterly_months = [3, 6, 9, 12]
-        
         year = current_date.year
         month = current_date.month
 
@@ -40,18 +45,30 @@ class IBKRClient:
         else:
             target_month = quarterly_months[0]
             year += 1
-        
-        # Skips quarters based on offset
+
         for _ in range(offset):
             target_month_index = (quarterly_months.index(target_month) + 1) % 4
             target_month = quarterly_months[target_month_index]
             if target_month_index == 0:
                 year += 1
-        
         return f"{year}{target_month:02d}"
     
-    # Retrieve contract
     def get_contract(self, ticker_type, symbol, year_month=None, quarter_offset=0):
+        """Retrieve contract for a stock or future
+
+        Args:
+            ticker_type (str): Type of ticker (stock or future)
+            symbol (str): Ticker symbol
+            year_month (str, optional): YYYYMM format for futures expiration
+            quarter_offset (int): Number of quarters to skip for futures
+
+        Returns:
+            Contract: Qualified IB contract objects
+
+        Raises:
+            ValueError: If ticker_type is invalid
+            Exception: If contract qualification fails
+        """
         try:
             if ticker_type == "Stock":
                 contract = Stock(symbol=symbol, exchange="SMART", currency="USD")
@@ -80,8 +97,21 @@ class IBKRClient:
             messagebox.showerror("Contract Error", f"An error occurred: {str(e)}")
             return None
 
-    # Retrieves stock price data
+
     def get_market_data(self, contract, retries=3, delay=1):
+        """Retrieve market data for a contract
+
+        Args:
+            contract (Contract): IB contract object
+            retries (int): Number of retry attempts 
+            delay (float): Delay in seconds in between retries
+
+        Returns:
+            dict: Dictionary with 'bid', 'ask', and 'last' prices
+
+        Raises:
+            ValueError: If market data is incomplete
+        """
         for attempt in range(retries):
             try:
                 ticker = self.ib.reqMktData(contract, genericTickList='')
@@ -99,8 +129,19 @@ class IBKRClient:
                     return None
                 time.sleep(delay * (2 ** attempt))
 
-    # Sends order placing request
     def place_order(self, contract, action, quantity):
+        """Place a market order for a contract
+        Args:
+            contract (Contract): IB contract object
+            action (str): Order action - Buy or Sell
+            quantity (int): Number of contracts or shares
+
+        Returns:
+            Trade: IB trade object, or None if order placement fails.
+
+        Raises:
+            ValueError: If quantity is invalid or action is not 'BUY' or 'SELL'.
+        """
         try:
             if not isinstance(quantity, int) or quantity <= 0:
                 raise ValueError("Invalid quantity")
@@ -114,8 +155,20 @@ class IBKRClient:
             messagebox.showerror("Order Error", f"Failed to place order: {str(e)}")
             return None
     
-    # Retrieves historical data of a stock
     def get_historical_data(self, contract, duration="1 D", barSize="1 min"):
+        """Retrieve historical market data for a contract
+
+        Args:
+            contract (Contract): IB contract object
+            duration (str): Duration of historical data 
+            barSize (str): Bar size 
+
+        Returns:
+            pandas.DataFrame: DataFrame with historical data
+
+        Raises:
+            ValueError: If historical data is incomplete or invalid
+        """
         try:
             bars = self.ib.reqHistoricalData(
                 contract,
@@ -135,6 +188,11 @@ class IBKRClient:
             return None
 
     def get_positions(self):
+        """Retrieve current account positions
+
+        Returns:
+            pandas.DataFrame: DataFrame with position details
+        """
         positions = self.ib.positions()
         if not positions:
             return "No positions currently held."
@@ -172,6 +230,14 @@ class IBKRClient:
 
 
     def calculate_indicators(self, df):
+        """Calculate technical indicators from historical data
+
+        Args:
+            df (pandas.DataFrame): DataFrame with 'close' and 'volume' columns
+
+        Returns:
+            dict: Dictionary with latest SMA, EMA, VWAP, and RSI values
+        """
         if df is None or df.empty or 'close' not in df.columns or 'volume' not in df.columns:
             return {}
 
