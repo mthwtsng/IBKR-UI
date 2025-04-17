@@ -79,12 +79,11 @@ def create_popup_window(parent, ibkr_client, ticker_type, symbol):
     refresh_indicators_btn.grid(row=0, column=1, rowspan=2, padx=10, pady=5)
     update_indicators()  
     
-    # ** Chart and order placement **
+    # Chart and order placement 
     right_frame = ttk.Frame(main_frame, padding=10)
     right_frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
     right_frame.columnconfigure(0, weight=1)
     
-    # Chart
     chart_frame = ttk.Labelframe(right_frame, text="Historical Data Chart", bootstyle="success")
     chart_frame.grid(row=0, column=0, sticky="nsew", pady=10)
     
