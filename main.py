@@ -1,4 +1,5 @@
 import ttkbootstrap as ttk
+from ttkbootstrap.dialogs import Messagebox
 from ttkbootstrap.constants import *
 import tkinter as tk
 import pandas as pd
@@ -81,7 +82,11 @@ def main():
     search_button = ttk.Button(
         search_frame,
         text="Search",
-        command=lambda: create_popup_window(app, ibkr, ticker_type.get(), symbol_entry.get())
+        command=lambda: (
+            Messagebox.show_error("Invalid Input", is_valid[1])
+            if not (is_valid := ibkr.validate_symbol(ticker_type.get(), symbol_entry.get()))[0]
+            else create_popup_window(app, ibkr, ticker_type.get(), symbol_entry.get())
+        )
     )
     search_button.grid(row=3, column=0, columnspan=2, pady=15)
 
