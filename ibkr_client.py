@@ -32,6 +32,7 @@ class IBKRClient:
         Returns:
             str: YYYYMM format of the expiration month
         """
+        
         if current_date is None:
             current_date = datetime.now()
         quarterly_months = [3, 6, 9, 12]
