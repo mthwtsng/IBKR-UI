@@ -20,6 +20,38 @@ class IBKRClient:
         self.ib = IB()
         self.ib.connect(host, port, clientId)
         self.ib.reqMarketDataType(3)
+    
+    def _create_contract(self, ticker_type, symbol, year_month=None, quarter_offset=0):
+        """Create a contract object for a stock or future
+
+        Args:
+            ticker_type (str): Type of ticker (stock or future)
+            symbol (str): Ticker symbol 
+            year_month (str, optional): YYYYMM format for futures expiration
+            quarter_offset (int): Number of quarters to skip for futures
+
+        Returns:
+            Contract or Stock: Unqualified contract object
+
+        Raises:
+            ValueError: If ticker_type is invalid
+        """
+        if ticker_type == "Stock":
+            return Stock(symbol=symbol, exchange="SMART", currency="USD")
+        elif ticker_type == "Future":
+            contract = Contract()
+            contract.secType = 'FUT'
+            contract.symbol = symbol
+            contract.exchange = 'CME'
+            contract.currency = 'USD'
+            contract.multiplier = ''
+            contract.lastTradeDateOrContractMonth = (
+                year_month if year_month
+                else self._get_next_quarterly_expiration(offset=quarter_offset)
+            )
+            return contract
+        else:
+            raise ValueError("Invalid ticker type. Choose 'Stock' or 'Future'.")
 
     def _get_next_quarterly_expiration(self, current_date=None, offset=0):
         """
@@ -54,6 +86,31 @@ class IBKRClient:
                 year += 1
         return f"{year}{target_month:02d}"
     
+    def validate_symbol(self, ticker_type, symbol):
+        """Validate a ticker symbol for stocks or futures
+        Args:
+            ticker_type (str): Type of ticker (stock or future)
+            symbol (str): Ticker symbol to validate
+
+        Returns:
+            tuple: (is_valid, message) where is_valid is a boolean indicating if the symbol
+                   is valid, and message is an error message 
+        """
+        if not symbol or not symbol.strip():
+            return False, "Ticker symbol cannot be empty."
+        if not symbol.isalnum():
+            return False, "Ticker symbol must be alphanumeric."
+
+        try:
+            contract = self._create_contract(ticker_type, symbol)
+            if not self.ib.qualifyContracts(contract):
+                return False, f"No valid contract found for {symbol} as a {ticker_type.lower()}."
+            return True, ""
+        except ValueError as e:
+            return False, f"Invalid input: {str(e)}"
+        except Exception as e:
+            return False, f"Failed to validate {symbol}: {str(e)}"
+    
     def get_contract(self, ticker_type, symbol, year_month=None, quarter_offset=0):
         """Retrieve contract for a stock or future
 
@@ -71,28 +128,9 @@ class IBKRClient:
             Exception: If contract qualification fails
         """
         try:
-            if ticker_type == "Stock":
-                contract = Stock(symbol=symbol, exchange="SMART", currency="USD")
-            elif ticker_type == "Future":
-                contract = Contract()
-                contract.secType = 'FUT'
-                contract.symbol = symbol    
-                contract.exchange = 'CME'
-                contract.currency = 'USD'
-                contract.multiplier = ''  
-                
-                if year_month:
-                    contract.lastTradeDateOrContractMonth = year_month
-                else:
-                    contract.lastTradeDateOrContractMonth = self._get_next_quarterly_expiration(
-                        offset=quarter_offset
-                    )
-            else:
-                raise ValueError("Invalid ticker type")
-
+            contract = self._create_contract(ticker_type, symbol, year_month, quarter_offset)
             if not self.ib.qualifyContracts(contract):
                 raise Exception(f"Failed to qualify contract for {symbol}")
-
             return contract
         except Exception as e:
             messagebox.showerror("Contract Error", f"An error occurred: {str(e)}")
