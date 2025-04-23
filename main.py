@@ -14,7 +14,7 @@ def toggle_theme(app):
         app (ttk.Window): The main application window
     """
     current_theme = app.style.theme.name
-    new_theme = "darkly" if current_theme == "flatly" else "flatly"
+    new_theme = "flatly" if current_theme == "darkly" else "darkly"
     app.style.theme_use(new_theme)
 
 
